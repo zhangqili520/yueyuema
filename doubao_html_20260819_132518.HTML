@@ -1,0 +1,734 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+   <link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#70c9aa"> <meta charset="UTF-8">
+    <!-- 移动端强制适配 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <title>个人记账小工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --green-main: #b9e9d8;
+            --green-dark: #70c9aa;
+            --pink-main: #f8d7e0;
+            --pink-dark: #f0b8c8;
+            --bg-color: #fffbf8;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-light: #777777;
+            --warn-color: #ff8c69;
+            --border-radius: 14px;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", system-ui, -apple-system, sans-serif;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding:16px;
+            padding-bottom: 90px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        header{
+            text-align:center;
+            margin-bottom:24px;
+        }
+        h1{
+            font-size:22px;
+            color:#444;
+        }
+        /*顶部标签大屏显示，手机隐藏*/
+        .tab-bar-top{
+            display:flex;
+            gap:8px;
+            margin-bottom:20px;
+            flex-wrap:wrap;
+        }
+        .tab-btn-top{
+            padding:10px 14px;
+            border:none;
+            border-radius:var(--border-radius);
+            background:var(--green-main);
+            cursor:pointer;
+            font-size:14px;
+            transition:0.2s;
+        }
+        .tab-btn-top.active{
+            background:var(--green-dark);
+            color:white;
+        }
+        /* 手机底部导航栏 */
+        .bottom-nav{
+            position:fixed;
+            left:0;
+            bottom:0;
+            width:100%;
+            background:#fff;
+            display:flex;
+            z-index:999;
+            box-shadow: 0 -2px 8px #00000015;
+        }
+        .nav-item{
+            flex:1;
+            text-align:center;
+            padding:12px 4px;
+            font-size:12px;
+            border:none;
+            background:white;
+        }
+        .nav-item.active{
+            color:#70c9aa;
+            font-weight:bold;
+        }
+        .panel{
+            display:none;
+            background:var(--card-bg);
+            padding:20px;
+            border-radius:var(--border-radius);
+            box-shadow: 0 2px 10px #00000010;
+            margin-bottom:20px;
+        }
+        .panel.show{
+            display:block;
+        }
+        .form-row{
+            margin-bottom:18px;
+        }
+        label{
+            display:block;
+            margin-bottom:8px;
+            font-size:15px;
+        }
+        input,select,textarea{
+            width:100%;
+            padding:14px 12px;
+            border:1px solid #ddd;
+            border-radius:10px;
+            font-size:16px;
+        }
+        .btn{
+            width: 100%;
+            padding:14px 20px;
+            border:none;
+            border-radius:10px;
+            cursor:pointer;
+            font-size:16px;
+            margin:6px 0;
+        }
+        .btn-green{
+            background:var(--green-dark);
+            color:white;
+        }
+        .btn-pink{
+            background:var(--pink-dark);
+            color:white;
+        }
+        .btn-warn{
+            background:var(--warn-color);
+            color:white;
+        }
+        .bill-item{
+            padding:14px 8px;
+            border-bottom:1px solid #eee;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+        }
+        .income{
+            color:#27ae60;
+            font-weight:bold;
+        }
+        .expense{
+            color:#e74c3c;
+            font-weight:bold;
+        }
+        .chart-wrap{
+            width:100%;
+            height:280px;
+            margin:20px 0;
+        }
+        .budget-tip{
+            padding:16px;
+            border-radius:10px;
+            margin:12px 0;
+        }
+        .safe{
+            background-color:var(--green-main);
+        }
+        .near{
+            background-color:var(--pink-main);
+        }
+        .over{
+            background-color:#ffd6cc;
+        }
+        .goal-item{
+            padding:16px;
+            background:var(--pink-main);
+            border-radius:12px;
+            margin-bottom:12px;
+        }
+        .progress-bar-bg{
+            width:100%;
+            height:14px;
+            background:#ddd;
+            border-radius:7px;
+            overflow:hidden;
+            margin-top:10px;
+        }
+        .progress-bar-fill{
+            height:100%;
+            background:var(--green-dark);
+        }
+        /*响应式切换导航*/
+        @media (max-width:720px){
+            .tab-bar-top{
+                display: none;
+            }
+        }
+        @media (min-width:721px){
+            .bottom-nav{
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>💚 个人记账小工具</h1>
+        <p style="font-size:13px;color:#888;">纯本地存储 · 数据保存在浏览器</p>
+    </header>
+
+    <!--电脑端顶部标签-->
+    <div class="tab-bar-top">
+        <button class="tab-btn-top active" data-tab="add">记一笔</button>
+        <button class="tab-btn-top" data-tab="list">账单明细</button>
+        <button class="tab-btn-top" data-tab="stats">数据统计</button>
+        <button class="tab-btn-top" data-tab="budget">预算管控</button>
+        <button class="tab-btn-top" data-tab="ledger">账本管理</button>
+        <button class="tab-btn-top" data-tab="goal">攒钱目标</button>
+        <button class="tab-btn-top" data-tab="backup">备份导出</button>
+    </div>
+
+    <!-- 记账面板 -->
+    <div class="panel show" id="add">
+        <div class="form-row">
+            <label>收支类型</label>
+            <select id="type">
+                <option value="expense">支出</option>
+                <option value="income">收入</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label>金额</label>
+            <input type="number" step="0.01" id="amount" placeholder="输入金额">
+        </div>
+        <div class="form-row">
+            <label>分类</label>
+            <select id="category">
+                <optgroup label="支出">
+                    <option>餐饮</option>
+                    <option>通勤</option>
+                    <option>购物</option>
+                    <option>住宿</option>
+                    <option>娱乐</option>
+                    <option>医疗</option>
+                    <option>人情往来</option>
+                    <option>日用百货</option>
+                    <option>水电网费</option>
+                </optgroup>
+                <optgroup label="收入">
+                    <option>工资</option>
+                    <option>兼职</option>
+                    <option>红包</option>
+                    <option>奖金</option>
+                    <option>转账</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="form-row">
+            <label>日期</label>
+            <input type="date" id="billDate">
+        </div>
+        <div class="form-row">
+            <label>备注</label>
+            <textarea id="remark" rows="2" placeholder="可选备注"></textarea>
+        </div>
+        <button class="btn btn-green" onclick="saveBill()">保存账单</button>
+    </div>
+
+    <!-- 账单列表 -->
+    <div class="panel" id="list">
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <input type="month" id="filterMonth">
+            <button class="btn btn-green" onclick="renderBillList()">筛选</button>
+        </div>
+        <div id="billListBox"></div>
+    </div>
+
+    <!-- 统计面板 -->
+    <div class="panel" id="stats">
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <input type="month" id="statMonth">
+            <button class="btn btn-green" onclick="drawStats()">查看统计</button>
+        </div>
+        <div id="summaryText"></div>
+        <div class="chart-wrap">
+            <canvas id="pieChart"></canvas>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="lineChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 预算 -->
+    <div class="panel" id="budget">
+        <div class="form-row">
+            <label>当月总预算金额</label>
+            <input type="number" step="0.01" id="monthBudget">
+        </div>
+        <button class="btn btn-green" onclick="saveBudget()">保存预算</button>
+        <div id="budgetInfo"></div>
+    </div>
+
+    <!-- 账本 -->
+    <div class="panel" id="ledger">
+        <div class="form-row">
+            <label>新建账本名称</label>
+            <input type="text" id="newLedgerName" placeholder="例如：家庭账本">
+        </div>
+        <button class="btn btn-green" onclick="addLedger()">新建账本</button>
+        <div style="margin-top:16px;">
+            <label>切换当前账本</label>
+            <select id="ledgerSelect" onchange="switchLedger()"></select>
+        </div>
+    </div>
+
+    <!-- 攒钱目标 -->
+    <div class="panel" id="goal">
+        <div class="form-row">
+            <label>目标名称</label>
+            <input type="text" id="goalName" placeholder="旅行、手机...">
+        </div>
+        <div class="form-row">
+            <label>目标总金额</label>
+            <input type="number" step="0.01" id="goalTotal">
+        </div>
+        <div class="form-row">
+            <label>已存入金额</label>
+            <input type="number" step="0.01" id="goalSave">
+        </div>
+        <button class="btn btn-green" onclick="addGoal()">新增目标</button>
+        <div id="goalBox" style="margin-top:20px;"></div>
+    </div>
+
+    <!--备份导出面板-->
+    <div class="panel" id="backup">
+        <h3>数据备份与导出</h3>
+        <p style="margin:10px 0;font-size:14px;color:#666;">
+            JSON：完整备份所有账本数据（用于恢复）<br>
+            CSV‑Excel：导出当前账本账单明细，可用WPS/Excel打开查看打印
+        </p>
+        <button class="btn btn-green" onclick="exportBackup()">💾 导出全量备份(JSON)</button>
+        <button class="btn btn-pink" onclick="exportCsv()">📊 导出当前账本账单(CSV‑Excel)</button>
+        <div class="form-row" style="margin-top:20px;">
+            <label>从JSON备份文件恢复（会覆盖现有数据！）</label>
+            <input type="file" id="importFile" accept=".json">
+        </div>
+        <button class="btn btn-warn" onclick="importBackup()">📂 导入备份文件</button>
+    </div>
+
+    <!--手机底部导航-->
+    <div class="bottom-nav">
+        <button class="nav-item active" data-tab="add">记账</button>
+        <button class="nav-item" data-tab="list">明细</button>
+        <button class="nav-item" data-tab="stats">统计</button>
+        <button class="nav-item" data-tab="budget">预算</button>
+        <button class="nav-item" data-tab="ledger">账本</button>
+        <button class="nav-item" data-tab="goal">目标</button>
+        <button class="nav-item" data-tab="backup">导出</button>
+    </div>
+
+    <script>
+        //全局数据
+        let currentLedger = "默认账本";
+        let billData = {};
+        let budgetData = {};
+        let goalList = [];
+        let pieChart,lineChart;
+        let activeTab = "add";
+
+        //初始化
+        function init(){
+            loadStorage();
+            document.getElementById('billDate').valueAsDate = new Date();
+            const now=new Date();
+            document.getElementById('filterMonth').value = now.getFullYear() + "-"+String(now.getMonth()+1).padStart(2,'0');
+            document.getElementById('statMonth').value = now.getFullYear() + "-"+String(now.getMonth()+1).padStart(2,'0');
+            renderLedgerSelect();
+            renderBillList();
+            drawStats();
+            renderBudget();
+            renderGoals();
+        }
+
+        //本地读写
+        function loadStorage(){
+            const b=localStorage.getItem("bills");
+            if(b) billData=JSON.parse(b);
+            if(!billData[currentLedger]) billData[currentLedger]=[];
+
+            const bud=localStorage.getItem("budget");
+            if(bud) budgetData=JSON.parse(bud);
+
+            const g=localStorage.getItem("goals");
+            if(g) goalList=JSON.parse(g);
+
+            const cl=localStorage.getItem("currentLedger");
+            if(cl) currentLedger=cl;
+        }
+        function saveStorage(){
+            localStorage.setItem("bills",JSON.stringify(billData));
+            localStorage.setItem("budget",JSON.stringify(budgetData));
+            localStorage.setItem("goals",JSON.stringify(goalList));
+            localStorage.setItem("currentLedger",currentLedger);
+        }
+
+        //统一切换标签函数
+        function switchTab(tabName){
+            activeTab = tabName;
+            //顶部按钮
+            document.querySelectorAll('.tab-btn-top').forEach(b=>{
+                b.classList.remove('active');
+                if(b.dataset.tab===tabName) b.classList.add('active');
+            })
+            //底部导航
+            document.querySelectorAll('.nav-item').forEach(b=>{
+                b.classList.remove('active');
+                if(b.dataset.tab===tabName) b.classList.add('active');
+            })
+            document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
+            document.getElementById(tabName).classList.add('show');
+        }
+        //绑定所有标签点击事件
+        document.querySelectorAll('.tab-btn-top,.nav-item').forEach(btn=>{
+            btn.onclick=()=>{
+                const tab=btn.dataset.tab;
+                switchTab(tab);
+            }
+        })
+
+        //记账保存
+        function saveBill(){
+            const type=document.getElementById('type').value;
+            const amount=parseFloat(document.getElementById('amount').value);
+            const category=document.getElementById('category').value;
+            const billDate=document.getElementById('billDate').value;
+            const remark=document.getElementById('remark').value.trim();
+            if(!amount || !billDate){
+                alert("请填写金额与日期");
+                return;
+            }
+            if(!billData[currentLedger]) billData[currentLedger]=[];
+            billData[currentLedger].push({
+                id:Date.now(),
+                type,amount,category,billDate,remark
+            });
+            saveStorage();
+            alert("账单保存成功");
+            document.getElementById('amount').value='';
+            document.getElementById('remark').value='';
+            renderBillList();
+            drawStats();
+            renderBudget();
+        }
+
+        //账单列表
+        function renderBillList(){
+            const selMonth=document.getElementById('filterMonth').value;
+            let list=billData[currentLedger]||[];
+            if(selMonth){
+                list=list.filter(b=>b.billDate.startsWith(selMonth));
+            }
+            list.sort((a,b)=>new Date(b.billDate)-new Date(a.billDate));
+            const box=document.getElementById('billListBox');
+            box.innerHTML='';
+            list.forEach(bill=>{
+                const div=document.createElement('div');
+                div.className="bill-item";
+                div.innerHTML=`
+                    <div>
+                        <div>${bill.billDate} · ${bill.category}</div>
+                        <div style="font-size:13px;color:#888;">${bill.remark||''}</div>
+                    </div>
+                    <div>
+                        <span class="${bill.type}">${bill.type==='income'?'+':'-'}${bill.amount.toFixed(2)}</span>
+                        <button class="btn btn-warn" style="margin-left:8px;padding:4px 8px;font-size:12px" onclick="delBill(${bill.id})">删除</button>
+                    </div>
+                `;
+                box.appendChild(div);
+            })
+        }
+        function delBill(id){
+            billData[currentLedger]=billData[currentLedger].filter(b=>b.id!==id);
+            saveStorage();
+            renderBillList();
+            drawStats();
+            renderBudget();
+        }
+
+        //统计图表
+        function drawStats(){
+            const selMonth=document.getElementById('statMonth').value;
+            const list=(billData[currentLedger]||[]).filter(b=>b.billDate.startsWith(selMonth));
+            let totalIncome=0,totalExpense=0;
+            const catExp={};
+            list.forEach(b=>{
+                if(b.type==='income') totalIncome+=b.amount;
+                else {
+                    totalExpense+=b.amount;
+                    if(!catExp[b.category]) catExp[b.category]=0;
+                    catExp[b.category]+=b.amount;
+                }
+            })
+            const surplus=totalIncome-totalExpense;
+            document.getElementById('summaryText').innerHTML=`
+                <p>当月总收入：<span class="income">${totalIncome.toFixed(2)}</span></p>
+                <p>当月总支出：<span class="expense">${totalExpense.toFixed(2)}</span></p>
+                <p>当月结余：${surplus.toFixed(2)}</p>
+            `;
+            //饼图
+            if(pieChart) pieChart.destroy();
+            pieChart=new Chart(document.getElementById('pieChart'),{
+                type:'pie',
+                data:{
+                    labels:Object.keys(catExp),
+                    datasets:[{
+                        data:Object.values(catExp),
+                        backgroundColor:['#b9e9d8','#f8d7e0','#f9e7b8','#d8c8f0','#ffcebc','#c5e4f7']
+                    }]
+                },
+                options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'支出分类饼图'}}}
+            });
+            //折线 近30天
+            if(lineChart) lineChart.destroy();
+            let dayMap={};
+            for(let i=29;i>=0;i--){
+                const d=new Date();d.setDate(d.getDate()-i);
+                const ds=d.toISOString().slice(0,10);
+                dayMap[ds]=0;
+            }
+            list.forEach(b=>{
+                if(b.type==='expense' && dayMap[b.billDate]!==undefined) dayMap[b.billDate]+=b.amount;
+            })
+            lineChart=new Chart(document.getElementById('lineChart'),{
+                type:'line',
+                data:{
+                    labels:Object.keys(dayMap).map(x=>x.slice(5)),
+                    datasets:[{
+                        label:'每日支出',
+                        data:Object.values(dayMap),
+                        borderColor:'#70c9aa',
+                        backgroundColor:'rgba(185,233,216,0.3)',
+                        fill:true,
+                        tension:0.3
+                    }]
+                },
+                options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'近30天支出趋势'}}}
+            })
+        }
+
+        //预算
+        function saveBudget(){
+            const monthKey=document.getElementById('filterMonth').value;
+            const val=parseFloat(document.getElementById('monthBudget').value)||0;
+            budgetData[monthKey]=val;
+            saveStorage();
+            renderBudget();
+            alert("预算已保存");
+        }
+        function renderBudget(){
+            const monthKey=document.getElementById('filterMonth').value;
+            const budget=budgetData[monthKey]||0;
+            const list=(billData[currentLedger]||[]).filter(b=>b.billDate.startsWith(monthKey)&&b.type==='expense');
+            const spent=list.reduce((sum,b)=>sum+b.amount,0);
+            const remain=budget-spent;
+            let cls='safe',tip='';
+            if(budget>0){
+                const rate=spent/budget;
+                if(rate>=1){cls='over';tip="⚠️ 已经超支！";}
+                else if(rate>=0.8){cls='near';tip="快要超支，注意消费";}
+                else tip="预算安全";
+            }
+            document.getElementById('budgetInfo').innerHTML=`
+                <div class="budget-tip ${cls}">
+                    <p>本月预算：${budget.toFixed(2)}</p>
+                    <p>已支出：${spent.toFixed(2)}</p>
+                    <p>剩余：${remain.toFixed(2)}</p>
+                    <p>${tip}</p>
+                </div>
+            `;
+        }
+
+        //账本
+        function renderLedgerSelect(){
+            const sel=document.getElementById('ledgerSelect');
+            sel.innerHTML='';
+            const ledgers=Object.keys(billData);
+            if(ledgers.length===0) ledgers.push("默认账本");
+            ledgers.forEach(l=>{
+                const opt=document.createElement('option');
+                opt.value=l;opt.innerText=l;
+                if(l===currentLedger) opt.selected=true;
+                sel.appendChild(opt);
+            })
+        }
+        function addLedger(){
+            const name=document.getElementById('newLedgerName').value.trim();
+            if(!name) return alert("填写账本名称");
+            if(!billData[name]) billData[name]=[];
+            saveStorage();
+            renderLedgerSelect();
+            document.getElementById('newLedgerName').value='';
+        }
+        function switchLedger(){
+            currentLedger=document.getElementById('ledgerSelect').value;
+            if(!billData[currentLedger]) billData[currentLedger]=[];
+            saveStorage();
+            renderBillList();
+            drawStats();
+            renderBudget();
+        }
+
+        //攒钱目标
+        function addGoal(){
+            const gname=document.getElementById('goalName').value.trim();
+            const gtotal=parseFloat(document.getElementById('goalTotal').value);
+            const gsave=parseFloat(document.getElementById('goalSave').value)||0;
+            if(!gname || !gtotal) return alert("填写目标名称和总金额");
+            goalList.push({id:Date.now(),name:gname,total:gtotal,saved:gsave});
+            saveStorage();
+            renderGoals();
+            document.getElementById('goalName').value='';
+            document.getElementById('goalTotal').value='';
+            document.getElementById('goalSave').value='';
+        }
+        function renderGoals(){
+            const box=document.getElementById('goalBox');
+            box.innerHTML='';
+            goalList.forEach(g=>{
+                const pct=Math.min(100,(g.saved/g.total)*100).toFixed(1);
+                const div=document.createElement('div');
+                div.className="goal-item";
+                div.innerHTML=`
+                    <div><strong>${g.name}</strong></div>
+                    <div>已存 ${g.saved.toFixed(2)} / ${g.total.toFixed(2)}</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" style="width:${pct}%"></div>
+                    </div>
+                    <div style="margin-top:6px">进度 ${pct}% <button class="btn btn-warn" style="padding:4px 8px;font-size:12px" onclick="delGoal(${g.id})">删除</button></div>
+                `;
+                box.appendChild(div);
+            })
+        }
+        function delGoal(id){
+            goalList=goalList.filter(g=>g.id!==id);
+            saveStorage();
+            renderGoals();
+        }
+
+        //==== JSON全量备份 ====
+        function exportBackup(){
+            const backup={
+                exportTime:new Date().toISOString(),
+                currentLedger,
+                billData,
+                budgetData,
+                goalList
+            };
+            const jsonStr=JSON.stringify(backup,null,2);
+            const blob=new Blob([jsonStr],{type:'application/json'});
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a');
+            const dateStr=new Date().toISOString().slice(0,10);
+            a.href=url;
+            a.download=`记账全量备份_${dateStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert("JSON备份文件已下载！");
+        }
+
+        //==== CSV‑Excel账单明细导出（当前账本全部账单）====
+        function exportCsv(){
+            const list=billData[currentLedger]||[];
+            if(list.length===0){
+                alert("当前账本暂无账单可导出");
+                return;
+            }
+            //表头
+            let csvText="日期,收支类型,金额,分类,备注\n";
+            list.forEach(bill=>{
+                const typeName=bill.type==='income'?'收入':'支出';
+                //处理备注逗号，避免格式错乱
+                const remark=bill.remark.replace(/"/g,'""');
+                csvText+=`${bill.billDate},${typeName},${bill.amount},${bill.category},"${remark}"\n`;
+            });
+            //添加BOM防止Excel打开中文乱码
+            const blob=new Blob(["\ufeff"+csvText],{type:'text/csv;charset=utf-8'});
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a');
+            const dateStr=new Date().toISOString().slice(0,10);
+            a.href=url;
+            a.download=`账单明细_${currentLedger}_${dateStr}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert("CSV账单明细导出成功，可用Excel/WPS打开！");
+        }
+
+        //==== JSON导入恢复 ====
+        function importBackup(){
+            const fileInput=document.getElementById('importFile');
+            if(!fileInput.files.length){
+                alert("请先选择备份json文件");
+                return;
+            }
+            const file=fileInput.files[0];
+            const reader=new FileReader();
+            reader.onload=function(e){
+                try{
+                    const backup=JSON.parse(e.target.result);
+                    if(!backup.billData){
+                        alert("备份文件格式不正确！");
+                        return;
+                    }
+                    if(!confirm("警告！导入将覆盖当前所有记账数据，确定继续？")) return;
+                    billData=backup.billData;
+                    budgetData=backup.budgetData||{};
+                    goalList=backup.goalList||[];
+                    if(backup.currentLedger) currentLedger=backup.currentLedger;
+                    saveStorage();
+                    renderLedgerSelect();
+                    renderBillList();
+                    drawStats();
+                    renderBudget();
+                    renderGoals();
+                    alert("导入恢复成功！");
+                }catch(err){
+                    alert("文件读取失败，不是有效的备份文件");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        init();
+    </script>
+</body>
+</html>
